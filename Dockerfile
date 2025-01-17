@@ -19,6 +19,7 @@ RUN <<ENDRUN
     chmod 644 x86_64/libsdrplay_api.so.3.15
     chmod 755 x86_64/sdrplay_apiService
 ENDRUN
+# Now sdrplay_apiService is built and in /sdrplay/x86_64
 
 # install sdrpp
 ADD "https://github.com/AlexandreRouma/SDRPlusPlus/releases/download/nightly/sdrpp_debian_bookworm_amd64.deb" ./sdrpp.deb
@@ -29,6 +30,7 @@ RUN <<ENDRUN
     cp /sdrplay/x86_64/sdrplay_apiService /usr/local/bin/sdrplay_apiService
     cp /usr/bin/sdrpp /usr/local/bin
 ENDRUN
+# Both the sdrpp binary and sdrplay_apiService are in /usr/local/bin
 
 #   copy all needed libraries.  Kind of a reverse muntzing - add until it quits whinning.
 WORKDIR /base/usr/lib
@@ -58,22 +60,26 @@ RUN <<ENDRUN
         /sdrplay/x86_64/libsdrplay_api*
 ENDLIST
 ENDRUN
+# /base/usr/lib now holds all needed libraries
 
 # grab files  and move binaries
 WORKDIR /base/sdrpp
 COPY sdrpp.conf.d ./conf.d
 COPY sdrpp.sh .
 RUN cp /usr/local/bin/* .
+# Libraries, binaries, and config files are now in /base/*
 ######################################################
 
 FROM bellsoft/alpaquita-linux-base:stream-glibc AS filesystem
 
 COPY --from=build /base /
+# / now holds binaries and config files in /sdrpp and libs in /usr/lib
 
 RUN <<EOR
     apk --no-cache add libstdc++ libusb
 
 #   Now remove some alpaquita stuff we don't need
+#	Remember just because we delete it doesn't free up the space taken in the filesystem image.
     rm -rf /lib/gconv
     rm -rf /lib/locale
     rm -rf /usr/sbin/sln
@@ -88,6 +94,10 @@ RUN <<EOR
     rm -rf /usr/bin/getconf
     rm -rf /usr/bin/getent
 EOR
+# Ready for scratch.  We use scratch to clean up layer junk by just copying needed stuff into the install image.
+#   Alpaquita files are in /
+#	Libraries are in /usr/lib
+#	binaries and config files are in /sdrpp
 #####################################################################
 
 FROM scratch AS install
