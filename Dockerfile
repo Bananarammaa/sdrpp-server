@@ -26,48 +26,59 @@ ADD "https://github.com/AlexandreRouma/SDRPlusPlus/releases/download/nightly/sdr
 
 RUN <<ENDRUN
     apt-get update
-    apt-get -y install ./sdrpp.deb rtl-sdr libusb-1.0-0
+    apt-get -y install ./sdrpp.deb rtl-sdr libusb-1.0-0 libglfw3
     cp /sdrplay/x86_64/sdrplay_apiService /usr/local/bin/sdrplay_apiService
     cp /usr/bin/sdrpp /usr/local/bin
 ENDRUN
-# Both the sdrpp binary and sdrplay_apiService are in /usr/local/bin
+# Build complete
 
 #   copy all needed libraries.  Kind of a reverse muntzing - add until it quits whinning.
 WORKDIR /base/usr/lib
 RUN <<ENDRUN
     mv /lib/sdrpp .
+    cp -a /usr/lib/libsdrpp_core.so .
+    cp -a /sdrplay/x86_64/libsdrplay_api* .
     while read p; do
-        cp $p .
+        cp -a /usr/lib/x86_64-linux-gnu/$p .
     done <<ENDLIST
-        /lib/x86_64-linux-gnu/libglfw.so.3
-        /lib/x86_64-linux-gnu/libOpenGL.so.0
-        /lib/x86_64-linux-gnu/libfftw3f.so.3
-        /lib/x86_64-linux-gnu/libvolk.so.2.5
-        /lib/x86_64-linux-gnu/libzstd.so.1
-        /lib/x86_64-linux-gnu/libm.so.6
-        /lib/x86_64-linux-gnu/libdl.so.2
-        /lib/x86_64-linux-gnu/libX11.so.6
-        /lib/x86_64-linux-gnu/libpthread.so.0
-        /lib/x86_64-linux-gnu/libGLdispatch.so.0
-        /lib/x86_64-linux-gnu/liborc-0.4.so.0
-        /lib/x86_64-linux-gnu/libxcb.so.1
-        /lib/x86_64-linux-gnu/libXau.so.6
-        /lib/x86_64-linux-gnu/libXdmcp.so.6
-        /lib/x86_64-linux-gnu/libbsd.so.0
-        /lib/x86_64-linux-gnu/libmd.so.0
-        /lib/x86_64-linux-gnu/librtlsdr.so.0
-        /usr/lib/libsdrpp_core.so
-        /sdrplay/x86_64/libsdrplay_api*
+        libglfw.*
+        libOpenGL.*
+        libfftw3f.*
+        libvolk.*
+        libzstd.*
+        libm.*
+        libdl.*
+        libX11.so.*
+        libpthread.*
+        libGLdispatch.*
+        liborc-0.4.*
+        libxcb.so*
+        libXau.so*
+        libXdmcp.so.*
+        libbsd.*
+        libmd.*
+        librt*
+        libudev*
+        libgcc_s*
+        libstdc++*
+        libusb*
 ENDLIST
+    rm *.a
 ENDRUN
-# /base/usr/lib now holds all needed libraries
+#         ld-linux* doesn't work in above list
+#         libselinux*
+#        librtlsdr.*
+#        libpcre2.*
+#        libtinfo*
 
-# grab files  and move binaries
+# grab files  and move binaries from /usr/local/bin
+# when done files are as follows:
+#   /base/sdrpp holds binaries, config, and startup script
+#   /base/lib holds all needed libraries
 WORKDIR /base/sdrpp
 COPY sdrpp.conf.d ./conf.d
 COPY sdrpp.sh .
 RUN cp /usr/local/bin/* .
-# Libraries, binaries, and config files are now in /base/*
 ######################################################
 
 FROM bellsoft/alpaquita-linux-base:stream-glibc AS filesystem
@@ -76,12 +87,14 @@ COPY --from=build /base /
 # / now holds binaries and config files in /sdrpp and libs in /usr/lib
 
 RUN <<EOR
-    apk --no-cache add libstdc++ libusb
+#   clean up some libraries
+    ln -s /lib/libsdrplay_api.so.3.15 /lib/libsdrplay_api.so.3
 
 #   Now remove some alpaquita stuff we don't need
 #	Remember just because we delete it doesn't free up the space taken in the filesystem image.
     rm -rf /lib/gconv
     rm -rf /lib/locale
+    rm -rf /lib/libmvec*
     rm -rf /usr/sbin/sln
     rm -rf /usr/sbin/ldconfig*
     rm -rf /usr/sbin/iconvconfig

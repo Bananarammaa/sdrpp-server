@@ -1,0 +1,108 @@
+# Dockerfile to build sdrplay and sdrpp server.
+# Based on an excellent example from github f4fhh/sdrppserver_container.
+# SDRplay API is pulled from sdrplay website
+# sdrpp is pulled from github sdrpp nightly releases.
+# Thanks to sdrplay and Alexandre Rouma for making this possible.
+#
+# D. G. Adams
+# 2024-Sep-15
+
+FROM debian:bookworm-slim AS dga-build
+
+# Get and run SDRplay API installer
+WORKDIR /sdrplay
+ADD https://www.sdrplay.com/software/SDRplay_RSP_API-Linux-3.15.1.run ./SDRplay.run
+
+RUN <<ENDRUN
+    chmod +x SDRplay.run
+    ./SDRplay.run --tar -xvf
+    chmod 644 x86_64/libsdrplay_api.so.3.15
+    chown root:root x86_64/libsdrplay_api.so.3.15
+    chmod 755 x86_64/sdrplay_apiService
+ENDRUN
+# Now sdrplay_apiService is built and in /sdrplay/x86_64
+
+# install sdrpp
+ADD "https://github.com/AlexandreRouma/SDRPlusPlus/releases/download/nightly/sdrpp_debian_bookworm_amd64.deb" ./sdrpp.deb
+
+RUN <<ENDRUN
+    apt-get update
+    apt-get -y install ./sdrpp.deb rtl-sdr libusb-1.0-0
+    cp /sdrplay/x86_64/sdrplay_apiService /usr/local/bin/sdrplay_apiService
+    cp /usr/bin/sdrpp /usr/local/bin
+ENDRUN
+# Both the sdrpp binary and sdrplay_apiService are in /usr/local/bin
+
+#   copy all needed libraries from the build layer and save them in /base/lib
+WORKDIR /base/usr/lib/x86_64-linux-gnu
+RUN <<EOR
+    cp -a /usr/lib/libsdrpp_core.* /base/usr/lib
+    cp -a /sdrplay/x86_64/libsdrplay_api* /base/usr/lib
+    ln -s ../libsdrplay_api.so.3.15 ../libsdrplay_api.so.3
+    mv /lib/sdrpp /base/usr/lib
+
+    while read p; do
+        cp -a /usr/lib/x86_64-linux-gnu/$p .
+    done <<ENDLIST
+        libglfw.*
+        libOpenGL.*
+        libfftw3f.*
+        libvolk.*
+        libzstd.*
+        libm.*
+        libdl.*
+        libX11.so.*
+        libpthread.*
+        libGLdispatch.*
+        liborc-0.4.*
+        libxcb.*
+        libXau.*
+        libXdmcp.*
+        libbsd.*
+        libmd.*
+        librtlsdr.*
+        libusb*
+        libstdc++*
+        libc.*
+        libselinux*
+        libpcre2*
+        ld-linux*
+        libudev*
+        libtinfo*
+        libgcc_s*
+        librt*
+ENDLIST
+    rm *.a
+EOR
+
+# grab files  and move binaries
+WORKDIR /base/sdrpp
+COPY sdrpp.conf.d ./conf.d
+RUN chmod 666 ./conf.d/*
+COPY sdrpp.sh .
+RUN cp /usr/local/bin/* .
+# Libraries, binaries, and config files are now in /base/*
+
+######################################################
+# Build our filesystem by cleaning out unnneded files,
+# and pulling necessary stuff from the dga-build layer
+
+FROM debian:bookworm-slim AS dga-filesystem
+WORKDIR /sdrpp
+COPY muntzpp.sh .
+RUN <<EOR
+    ./muntzpp.sh
+    ldconfig
+EOR
+COPY --from=dga-build /base /
+#####################################################################
+# Ready for scratch.  We use scratch to clean up layer junk by just copying needed stuff into the install image.
+#	Libraries are in /usr/lib
+#	binaries and config files are in /sdrpp
+
+FROM scratch AS install
+COPY --from=dga-filesystem / /
+EXPOSE 5259
+WORKDIR /sdrpp
+USER root
+CMD ["/sdrpp/sdrpp.sh" ]
