@@ -5,7 +5,7 @@
 # Thanks to sdrplay and Alexandre Rouma for making this possible.
 #
 # D. G. Adams
-# 2024-Sep-15
+# 2025-March-12
 
 FROM debian:bookworm-slim AS dga-build
 
@@ -23,76 +23,43 @@ ENDRUN
 
 # install sdrpp
 ADD "https://github.com/AlexandreRouma/SDRPlusPlus/releases/download/nightly/sdrpp_debian_bookworm_amd64.deb" ./sdrpp.deb
-
 RUN <<ENDRUN
     apt-get update
-    apt-get -y install ./sdrpp.deb rtl-sdr libusb-1.0-0 libglfw3
+    apt-get -y install ./sdrpp.deb rtl-sdr libusb-1.0-0 libglfw3 busybox
     cp /sdrplay/x86_64/sdrplay_apiService /usr/local/bin/sdrplay_apiService
     cp /usr/bin/sdrpp /usr/local/bin
 ENDRUN
 # Both the sdrpp binary and sdrplay_apiService are in /usr/local/bin
-
-#   copy all needed libraries from the build layer and save them in /base/lib
-WORKDIR /base/usr/lib/x86_64-linux-gnu
+# Now do some flimflamery to preserve library links across layer copy.
+WORKDIR /sdrpp/tmp
 RUN <<EOR
-    cp -a /usr/lib/libsdrpp_core.* /base/usr/lib
-    cp -a /sdrplay/x86_64/libsdrplay_api* /base/usr/lib
-    mv /lib/sdrpp /base/usr/lib
-
-    while read p; do
-        cp -a /usr/lib/x86_64-linux-gnu/$p .
-    done <<ENDLIST
-        libglfw.*
-        libOpenGL.*
-        libfftw3f.*
-        libvolk.*
-        libzstd.*
-        libm.*
-        libdl.*
-        libX11.so.*
-        libpthread.*
-        libGLdispatch.*
-        liborc-0.4.*
-        libxcb.*
-        libXau.*
-        libXdmcp.*
-        libbsd.*
-        libmd.*
-        librtlsdr.*
-        libusb*
-        libstdc++*
-        libc.*
-        libselinux*
-        libpcre2*
-        libudev*
-        libtinfo*
-        libgcc_s*
-        librt*
-ENDLIST
+    cp -a /usr/lib/x86_64-linux-gnu/* .
+    cp -a /sdrplay/x86_64/libsdrplay_api* .
+    cp -a /usr/lib/libsdrpp_core.* .
+    ln -s libsdrplay_api.so.3.15 libsdrplay_api.so.3
     rm *.a
 EOR
-
-# grab files  and move binaries
-WORKDIR /base/sdrpp
-COPY sdrpp.conf.d ./conf.d
-RUN chmod 666 ./conf.d/*
-COPY sdrpp.sh .
-RUN cp /usr/local/bin/* .
-# Libraries, binaries, and config files are now in /base/*
-
 ######################################################
-# Build our filesystem by cleaning out unnneded files,
-# and pulling necessary stuff from the dga-build layer
+# Build our filesystem
+# copy all needed files from dga-build.
+# Then call sdrpp-muntz to remove unneeded files and add in needed libraries.
 
 FROM debian:bookworm-slim AS dga-filesystem
-WORKDIR /sdrpp
-COPY muntzpp.sh .
+
+COPY --from=dga-build /usr/lib/sdrpp /lib/sdrpp/
+COPY --from=dga-build /sdrpp/tmp /sdrpp/tmp/
+COPY --from=dga-build /usr/local/bin/* /sdrpp
+COPY --from=dga-build /bin/busybox /bin
+COPY files/ /sdrpp
+
 RUN <<EOR
-    ln -s /usr/lib/libsdrplay_api.so.3.15 /usr/lib/libsdrplay_api.so.3
-    ./muntzpp.sh
-    rm -f muntzpp.sh
+    /sdrpp/sdrpp-muntz.sh
+    rm -rf /sdrpp/tmp /sdrpp/sdrpp-muntz.sh
+
+#   initialize busybox
+    rm /bin/cp /bin/rm
+    /bin/busybox --install -s
 EOR
-COPY --from=dga-build /base /
 #####################################################################
 # Ready for scratch.  We use scratch to clean up layer junk by just copying needed stuff into the install image.
 #	Libraries are in /usr/lib
@@ -102,5 +69,5 @@ FROM scratch AS install
 COPY --from=dga-filesystem / /
 EXPOSE 5259
 WORKDIR /sdrpp
-USER root
+USER nobody
 CMD ["/sdrpp/sdrpp.sh" ]
