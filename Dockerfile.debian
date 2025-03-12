@@ -17,7 +17,6 @@ RUN <<ENDRUN
     chmod +x SDRplay.run
     ./SDRplay.run --tar -xvf
     chmod 644 x86_64/libsdrplay_api.so.3.15
-    chown root:root x86_64/libsdrplay_api.so.3.15
     chmod 755 x86_64/sdrplay_apiService
 ENDRUN
 # Now sdrplay_apiService is built and in /sdrplay/x86_64
@@ -27,7 +26,7 @@ ADD "https://github.com/AlexandreRouma/SDRPlusPlus/releases/download/nightly/sdr
 
 RUN <<ENDRUN
     apt-get update
-    apt-get -y install ./sdrpp.deb rtl-sdr libusb-1.0-0
+    apt-get -y install ./sdrpp.deb rtl-sdr libusb-1.0-0 libglfw3
     cp /sdrplay/x86_64/sdrplay_apiService /usr/local/bin/sdrplay_apiService
     cp /usr/bin/sdrpp /usr/local/bin
 ENDRUN
@@ -38,7 +37,6 @@ WORKDIR /base/usr/lib/x86_64-linux-gnu
 RUN <<EOR
     cp -a /usr/lib/libsdrpp_core.* /base/usr/lib
     cp -a /sdrplay/x86_64/libsdrplay_api* /base/usr/lib
-    ln -s ../libsdrplay_api.so.3.15 ../libsdrplay_api.so.3
     mv /lib/sdrpp /base/usr/lib
 
     while read p; do
@@ -66,7 +64,6 @@ RUN <<EOR
         libc.*
         libselinux*
         libpcre2*
-        ld-linux*
         libudev*
         libtinfo*
         libgcc_s*
@@ -91,8 +88,9 @@ FROM debian:bookworm-slim AS dga-filesystem
 WORKDIR /sdrpp
 COPY muntzpp.sh .
 RUN <<EOR
+    ln -s /usr/lib/libsdrplay_api.so.3.15 /usr/lib/libsdrplay_api.so.3
     ./muntzpp.sh
-    ldconfig
+    rm -f muntzpp.sh
 EOR
 COPY --from=dga-build /base /
 #####################################################################

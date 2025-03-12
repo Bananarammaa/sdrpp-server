@@ -15,7 +15,7 @@ cd /usr/sbin
 rm !(ldconfig)
 
 cd /usr/bin
-rm !(bash|ls|ldd|chown|chmod|more|rm)
+rm !(bash|ls|sh|dash|more|rm)
 
 #   Remove select libraries
 rm -rf /usr/lib/apt
@@ -23,5 +23,5 @@ rm -rf /usr/lib/systemd
 
 #   Remove everything but what we need from x86_64_linux-gnu
 cd /lib/x86_64-linux-gnu
-EXCLUDE="!(libc.*|libselinux*|libtinfo*)"
+EXCLUDE="!(libc.*|libselinux*|libtinfo*|ld-linux*)"
 rm -rf $EXCLUDE
