@@ -42,7 +42,8 @@ EOR
 ######################################################
 # Build our filesystem
 # copy all needed files from dga-build.
-# Then call sdrpp-muntz to remove unneeded files and add in needed libraries.
+# Then call sdrpp-muntz to remove unneeded files
+# and last, install busybox.  Order of commands is critical when changing shells.
 
 FROM debian:bookworm-slim AS dga-filesystem
 
@@ -54,11 +55,8 @@ COPY files/ /sdrpp
 
 RUN <<EOR
     /sdrpp/sdrpp-muntz.sh
-    rm -rf /sdrpp/tmp /sdrpp/sdrpp-muntz.sh
-
-#   initialize busybox
-    rm /bin/cp /bin/rm
     /bin/busybox --install -s
+    rm -rf /sdrpp/tmp /sdrpp/sdrpp-muntz.sh
 EOR
 #####################################################################
 # Ready for scratch.  We use scratch to clean up layer junk by just copying needed stuff into the install image.
