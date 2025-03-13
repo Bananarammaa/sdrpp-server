@@ -6,7 +6,7 @@ shopt -s extglob
 cd /usr/lib
 rm -rf !(x86_64-linux-gnu|sdrpp)
 
-#   Remove everything but what commands (bash,rm,etc) need for operation
+# remove all libraries except ...
 cd /usr/lib/x86_64-linux-gnu
 rm -rf !(libc.*|libselinux*|libpcre*|libtinfo*|ld-linux*|libacl.*|libattr.*)
 
@@ -53,6 +53,8 @@ rm -rf /usr/share/doc
 rm -rf /usr/share/zoneinfo
 rm -rf /usr/share/perl5
 rm -rf /usr/share/common-licenses
+
+# And last remove everything from sbin and bin except busybox.
 cd /usr/sbin && rm !(nothing)
 cd /usr/bin &&  rm !(busybox)
 

@@ -20,8 +20,8 @@ RUN <<ENDRUN
     chmod 755 x86_64/sdrplay_apiService
 ENDRUN
 # Now sdrplay_apiService is built and in /sdrplay/x86_64
-
 # install sdrpp
+
 ADD "https://github.com/AlexandreRouma/SDRPlusPlus/releases/download/nightly/sdrpp_debian_bookworm_amd64.deb" ./sdrpp.deb
 RUN <<ENDRUN
     apt-get update
@@ -29,8 +29,9 @@ RUN <<ENDRUN
     cp /sdrplay/x86_64/sdrplay_apiService /usr/local/bin/sdrplay_apiService
     cp /usr/bin/sdrpp /usr/local/bin
 ENDRUN
+
 # Both the sdrpp binary and sdrplay_apiService are in /usr/local/bin
-# Now do some flimflamery to preserve library links across layer copy.
+# Now do some flimflamerie to preserve library links across layer copy.
 WORKDIR /sdrpp/tmp
 RUN <<EOR
     cp -a /usr/lib/x86_64-linux-gnu/* .
