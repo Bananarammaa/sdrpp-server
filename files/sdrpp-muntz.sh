@@ -8,7 +8,12 @@ rm -rf !(x86_64-linux-gnu|sdrpp)
 
 # remove all libraries except ...
 cd /usr/lib/x86_64-linux-gnu
-rm -rf !(libc.*|libselinux*|libpcre*|libtinfo*|ld-linux*|libacl.*|libattr.*)
+EXC="!(libc.*|ld-linux*"							# basic c library
+#EXC+="|libtinfo*"									# needed for bash
+EXC+="|libselinux*|libacl.*|libattr.*|libpcre*"		# needed for cp
+EXC+="|libresolv.*"									# needed for busybox
+EXC+=")"
+rm -fr $EXC
 
 #   Now copy in needed libraries
 while read p; do
@@ -35,26 +40,20 @@ done <<ENDLIST
     librtlsdr.*
     libusb*
     libstdc++*
-    libc.*
     libselinux*
-    libpcre2*
     libudev*
-    libtinfo*
     libgcc_s*
     librt*
-    libresolv.*
 ENDLIST
 
-#   Nuke some misc stuff, /usr/sbin and /usr/bin
+#   Nuke anything not needed in the container
 rm -rf /var/lib/dpkg
 rm -rf /var/lib/apt
 rm -rf /var/cache/debconf
-rm -rf /usr/share/doc
-rm -rf /usr/share/zoneinfo
-rm -rf /usr/share/perl5
-rm -rf /usr/share/common-licenses
+rm -rf /var/cache/apt
+rm -rf /usr/share
 
 # And last remove everything from sbin and bin except busybox.
 cd /usr/sbin && rm !(nothing)
-cd /usr/bin &&  rm !(busybox)
+cd /usr/bin  && rm !(busybox)
 
