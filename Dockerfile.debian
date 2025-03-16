@@ -31,37 +31,38 @@ RUN <<ENDRUN
 ENDRUN
 
 # Both the sdrpp binary and sdrplay_apiService are in /usr/local/bin
-# Now do some flimflamerie to preserve library links across layer copy.
-WORKDIR /sdrpp/tmp
+# Move all libraries into /dga-tmp including x86_64-linux-gnu libraries
+# Doing this with a copy -a preserves links across layer copy.
+WORKDIR /dga-tmp
 RUN <<EOR
-    cp -a /usr/lib/x86_64-linux-gnu/* .
     cp -a /sdrplay/x86_64/libsdrplay_api* .
     cp -a /usr/lib/libsdrpp_core.* .
     ln -s libsdrplay_api.so.3.15 libsdrplay_api.so.3
+    cp -a /lib/x86_64-linux-gnu/* .
     rm *.a
 EOR
 ######################################################
-# Build our filesystem
+# Build our filesystem. Using a new layer removes potential junk.
 # copy all needed files from dga-build.
 # Then call sdrpp-muntz to remove unneeded files
-# and last, install busybox.  Order of commands is critical when changing shells.
+# and last, install busybox.
 
 FROM debian:bookworm-slim AS dga-filesystem
 
 COPY --from=dga-build /usr/lib/sdrpp /lib/sdrpp/
-COPY --from=dga-build /sdrpp/tmp /sdrpp/tmp/
-COPY --from=dga-build /usr/local/bin/* /sdrpp
-COPY --from=dga-build /bin/busybox /bin
+COPY --from=dga-build /dga-tmp/ /usr/lib/x86_64-linux-gnu
+COPY --from=dga-build /usr/local/bin/* /sdrpp/
+COPY --from=dga-build /bin/busybox /usr/bin
 COPY files/ /sdrpp
 
 RUN <<EOR
     /sdrpp/sdrpp-muntz.sh
     /bin/busybox --install -s
-    rm -rf /sdrpp/tmp /sdrpp/sdrpp-muntz.sh
+    rm -rf /sdrpp/sdrpp-muntz.sh
 EOR
 #####################################################################
-# Ready for scratch.  We use scratch to clean up layer junk by just copying needed stuff into the install image.
-#	Libraries are in /usr/lib
+#   Ready for scratch.  We use scratch to keep deleted space out of the install layer.
+#	Libraries are in /usr/lib/x86_64-linux-gnu
 #	binaries and config files are in /sdrpp
 
 FROM scratch AS install
