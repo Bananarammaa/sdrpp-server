@@ -26,7 +26,7 @@ shopt -s extglob
 
 #   Nuke anything not needed in the container
     cd /var && rm -rf !(nothing)
-    cd /etc && rm -rf apt dpkg
+    cd /etc && rm -rf !(passwd|group|gshadow|shadow)
     cd /usr && rm -rf !(lib|bin|sbin|lib64|libexec)
 
 # 	And last remove everything from sbin and bin except busybox.
