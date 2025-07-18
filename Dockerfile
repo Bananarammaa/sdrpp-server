@@ -55,9 +55,9 @@ COPY --from=dga-build /usr/bin/busybox /usr/bin/
 COPY files/ /sdrpp
 
 RUN <<EOR
-    /sdrpp/sdrpp-muntz.sh
+    #/sdrpp/sdrpp-muntz.sh
     /bin/busybox --install -s
-    rm -rf /sdrpp/sdrpp-muntz.sh
+    #rm -rf /sdrpp/sdrpp-muntz.sh
 EOR
 
 #####################################################################
