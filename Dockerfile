@@ -69,5 +69,5 @@ FROM scratch AS install
 COPY --from=dga-filesystem / /
 EXPOSE 5259
 WORKDIR /sdrpp
-USER nobody
+USER root
 CMD ["/sdrpp/sdrpp.sh" ]
