@@ -33,6 +33,16 @@
             "ifModeId": 0,
             "lnaGain": 27,
             "sampleRate": 2000000
+        },
+        "RSPdx-R2 (2403067170)": {
+            "agc": false,
+            "antenna": 1,
+            "biast": false,
+            "dabNotch": true,
+            "fmmwNotch": false,
+            "ifGain": 38,
+            "lnaGain": 9,
+            "samplerate": 10000000
         }
     }
 }
